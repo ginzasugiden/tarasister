@@ -3,7 +3,7 @@
  */
 const API = (() => {
   // GASデプロイURL（初回デプロイ後にここを書き換える）
-  const BASE_URL = 'https://script.google.com/macros/s/AKfycbxJifcUYgiLAu-Hl59YPBVKFBfh5CG3KCyNtPV-KqivzDC_pDpGLKVrAJGovv64Y5GBcw/exec';
+  const BASE_URL = 'https://script.google.com/macros/s/AKfycbwiGDHQsYLncsU5sCuczXGewfH211WfyfmCfVLotrcYhV-uEuDLVQEcG_zWXsgaoXg1/exec';
 
   let authToken = '';
 
