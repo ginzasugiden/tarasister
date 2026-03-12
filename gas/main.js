@@ -19,7 +19,9 @@ function handleRequest_(e) {
     if (!p.auth || !verifyAuth_(p.auth)) return json_({ ok:false, error:'認証エラー' });
 
     let post = {};
-    if (e.postData && e.postData.contents) {
+    if (p.data) {
+      try { post = JSON.parse(Utilities.newBlob(Utilities.base64Decode(p.data)).getDataAsString()); } catch(_){}
+    } else if (e.postData && e.postData.contents) {
       try { post = JSON.parse(e.postData.contents); } catch(_){}
     }
 
