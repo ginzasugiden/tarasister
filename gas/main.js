@@ -124,15 +124,19 @@ function removeTriggers() {
 // ===== メニュー =====
 
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('🤖 X自動投稿')
-    .addItem('📋 初期セットアップ', 'setupSpreadsheet')
-    .addItem('⏰ トリガー設定', 'setupTrigger')
-    .addItem('🗑️ トリガー全削除', 'removeTriggers')
-    .addSeparator()
-    .addItem('📮 今すぐ投稿', 'postTweet')
-    .addItem('🧪 テスト生成', 'testGenerateOnly_')
-    .addItem('📊 エンゲージメント取得', 'updateEngagement')
-    .addSeparator()
-    .addItem('🔄 BASE商品再取得', 'scrapeAndSyncProducts')
-    .addToUi();
+  try {
+    SpreadsheetApp.getUi().createMenu('🤖 X自動投稿')
+      .addItem('📋 初期セットアップ', 'setupSpreadsheet')
+      .addItem('⏰ トリガー設定', 'setupTrigger')
+      .addItem('🗑️ トリガー全削除', 'removeTriggers')
+      .addSeparator()
+      .addItem('📮 今すぐ投稿', 'postTweet')
+      .addItem('🧪 テスト生成', 'testGenerateOnly_')
+      .addItem('📊 エンゲージメント取得', 'updateEngagement')
+      .addSeparator()
+      .addItem('🔄 BASE商品再取得', 'scrapeAndSyncProducts')
+      .addToUi();
+  } catch(e) {
+    Logger.log('onOpen: スタンドアロンのためメニュー追加スキップ');
+  }
 }

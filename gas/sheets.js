@@ -159,7 +159,6 @@ function updateEngagement() {
 
 function setupSpreadsheet() {
   const s = ss_();
-  const ui = SpreadsheetApp.getUi();
   const hStyle = (sh,cols) => sh.getRange(1,1,1,cols).setFontWeight('bold').setBackground('#1a1a2e').setFontColor('white');
 
   // 認証
@@ -210,6 +209,6 @@ function setupSpreadsheet() {
     sh.getRange('A1:B2').setValues([['最終実行日時','（未実行）'],['最終ステータス','セットアップ完了']]);
   }
 
-  ui.alert('✅ セットアップ完了！\n\nログイン: '+auth.user+' / '+auth.pass
-    +'\n\n次: スクリプトプロパティにAPIキー設定 → Webアプリデプロイ → setupTrigger');
+  Logger.log('✅ セットアップ完了！ ログイン: '+auth.user+' / '+auth.pass
+    +' 次: スクリプトプロパティにAPIキー設定 → Webアプリデプロイ → setupTrigger');
 }
