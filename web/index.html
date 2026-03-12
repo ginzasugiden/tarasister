@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TARA SISTER - X投稿管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- ===== ログイン画面 ===== -->
+  <div id="login-screen" class="screen active">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="login-mark">禊</div>
+        <h1>TARA SISTER</h1>
+        <p class="login-sub">X Auto Post Management</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <div class="input-group">
+          <label for="login-user">ユーザーID</label>
+          <input type="text" id="login-user" required autocomplete="username">
+        </div>
+        <div class="input-group">
+          <label for="login-pass">パスワード</label>
+          <input type="password" id="login-pass" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">ログイン</button>
+        <p id="login-error" class="error-text" hidden></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== メインアプリ ===== -->
+  <div id="app-screen" class="screen">
+    <!-- ヘッダー -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="header-mark">禊</span>
+        <span class="header-title">TARA SISTER</span>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" data-tab="dashboard">ダッシュボード</button>
+        <button class="nav-btn" data-tab="products">商品マスタ</button>
+        <button class="nav-btn" data-tab="prompts">プロンプト</button>
+        <button class="nav-btn" data-tab="logs">投稿ログ</button>
+        <button class="nav-btn" data-tab="analysis">分析</button>
+      </nav>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">ログアウト</button>
+    </header>
+
+    <!-- コンテンツ -->
+    <main class="app-main">
+
+      <!-- ダッシュボード -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="page-header">
+          <h2>ダッシュボード</h2>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-test-generate">🧪 テスト生成</button>
+            <button class="btn btn-primary btn-sm" id="btn-post-now">📮 今すぐ投稿</button>
+          </div>
+        </div>
+
+        <div id="status-cards" class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">総投稿数</div>
+            <div class="stat-value" id="stat-total">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">成功率</div>
+            <div class="stat-value" id="stat-success-rate">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">最終投稿</div>
+            <div class="stat-value stat-value-sm" id="stat-last-run">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">ステータス</div>
+            <div class="stat-value stat-value-sm" id="stat-status">-</div>
+          </div>
+        </div>
+
+        <div class="card" id="dashboard-result" hidden>
+          <h3 id="result-title"></h3>
+          <div id="result-body" class="result-body"></div>
+        </div>
+      </section>
+
+      <!-- 商品マスタ -->
+      <section id="tab-products" class="tab-content">
+        <div class="page-header">
+          <h2>商品マスタ</h2>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-base">🔄 BASEから取得</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-product">＋ 商品追加</button>
+        </div>
+        <div id="products-list" class="table-container">
+          <p class="loading">読み込み中...</p>
+        </div>
+
+        <!-- 商品編集モーダル -->
+        <div id="product-modal" class="modal" hidden>
+          <div class="modal-overlay"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="product-modal-title">商品編集</h3>
+              <button class="modal-close" id="product-modal-close">&times;</button>
+            </div>
+            <form id="product-form" class="modal-body">
+              <input type="hidden" id="pf-rowIndex">
+              <div class="input-group">
+                <label for="pf-name">商品名 *</label>
+                <input type="text" id="pf-name" required>
+              </div>
+              <div class="input-row">
+                <div class="input-group">
+                  <label for="pf-price">価格</label>
+                  <input type="text" id="pf-price">
+                </div>
+                <div class="input-group">
+                  <label for="pf-category">カテゴリ</label>
+                  <input type="text" id="pf-category">
+                </div>
+              </div>
+              <div class="input-group">
+                <label for="pf-features">特徴</label>
+                <textarea id="pf-features" rows="3"></textarea>
+              </div>
+              <div class="input-group">
+                <label for="pf-target">ターゲット</label>
+                <textarea id="pf-target" rows="2"></textarea>
+              </div>
+              <div class="input-group">
+                <label for="pf-url">URL</label>
+                <input type="url" id="pf-url">
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="product-cancel">キャンセル</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- プロンプト -->
+      <section id="tab-prompts" class="tab-content">
+        <div class="page-header">
+          <h2>プロンプト設定</h2>
+          <button class="btn btn-primary btn-sm" id="btn-save-prompts">保存</button>
+        </div>
+        <div class="card">
+          <div class="prompt-guide">
+            <p>AIが投稿文を生成する際のスタイルを調整できます。変更は次回の投稿から反映されます。</p>
+            <p class="prompt-vars"><code>{{商品名}}</code> <code>{{価格}}</code> <code>{{カテゴリ}}</code> <code>{{特徴}}</code> <code>{{ターゲット}}</code> <code>{{URL}}</code> は商品マスタの値に自動置換されます。</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>システムプロンプト</h3>
+          <p class="card-desc">AIの人格・ルールを定義します</p>
+          <textarea id="prompt-system" class="prompt-textarea" rows="10"></textarea>
+        </div>
+        <div class="card">
+          <h3>ユーザープロンプト</h3>
+          <p class="card-desc">商品情報の伝え方を定義します</p>
+          <textarea id="prompt-user" class="prompt-textarea" rows="8"></textarea>
+        </div>
+      </section>
+
+      <!-- 投稿ログ -->
+      <section id="tab-logs" class="tab-content">
+        <div class="page-header">
+          <h2>投稿ログ</h2>
+        </div>
+        <div id="logs-container" class="table-container">
+          <p class="loading">読み込み中...</p>
+        </div>
+        <div id="logs-pager" class="pager" hidden></div>
+      </section>
+
+      <!-- ABテスト分析 -->
+      <section id="tab-analysis" class="tab-content">
+        <div class="page-header">
+          <h2>ABテスト分析</h2>
+        </div>
+        <div id="analysis-winner" class="winner-card"></div>
+        <div id="analysis-summary" class="stats-grid"></div>
+        <div class="card">
+          <h3>日別投稿数（直近14日）</h3>
+          <div id="analysis-chart" class="chart-area"></div>
+        </div>
+        <div class="card">
+          <h3>商品別パフォーマンス</h3>
+          <div id="analysis-products" class="table-container"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/products.js"></script>
+  <script src="js/prompts.js"></script>
+  <script src="js/logs.js"></script>
+  <script src="js/analysis.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
