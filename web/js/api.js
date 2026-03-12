@@ -16,11 +16,32 @@ const API = (() => {
       params.set('data', btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
     }
     const url = BASE_URL + '?' + params.toString();
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('通信エラー: ' + res.status);
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || '不明なエラー');
-    return json.data;
+
+    return new Promise((resolve, reject) => {
+      const cbName = '_jsonp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      const timeout = setTimeout(() => {
+        delete window[cbName];
+        script.remove();
+        reject(new Error('タイムアウト'));
+      }, 30000);
+
+      window[cbName] = (json) => {
+        clearTimeout(timeout);
+        delete window[cbName];
+        script.remove();
+        if (!json.ok) { reject(new Error(json.error || '不明なエラー')); return; }
+        resolve(json.data);
+      };
+
+      const script = document.createElement('script');
+      script.src = url + '&callback=' + cbName;
+      script.onerror = () => {
+        clearTimeout(timeout);
+        delete window[cbName];
+        reject(new Error('通信エラー'));
+      };
+      document.head.appendChild(script);
+    });
   }
 
   return { setAuth, getAuth, request, BASE_URL };

@@ -7,7 +7,16 @@ function ss_() { return SpreadsheetApp.openById(SS_ID); }
 
 // ===== Web App エンドポイント =====
 
-function doGet(e) { return handleRequest_(e); }
+function doGet(e) {
+  const result = handleRequest_(e);
+  const jsonText = result.getContent();
+  const callback = (e.parameter || {}).callback;
+  if (callback) {
+    return ContentService.createTextOutput(callback + '(' + jsonText + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return result;
+}
 function doPost(e) { return handleRequest_(e); }
 
 function handleRequest_(e) {
