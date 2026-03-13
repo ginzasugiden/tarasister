@@ -25,7 +25,24 @@ function handleRequest_(e) {
     const action = p.action || '';
     if (action === 'ping') return json_({ ok:true });
 
-    if (!p.auth || !verifyAuth_(p.auth)) return json_({ ok:false, error:'認証エラー' });
+    if (action === 'debugAuth') {
+      var authParam = p.tk || '(なし)';
+      var ss = SpreadsheetApp.openById('12jG6r6WrUFbTdJfk86i9zdCxbc0ZP8tlBOojTDjQnBU');
+      var sheet = ss.getSheetByName('認証');
+      var sheetToken = sheet ? String(sheet.getRange('B2').getValue()).trim() : '(シートなし)';
+      return json_({
+        ok: true,
+        received: authParam,
+        receivedLen: authParam.length,
+        stored: sheetToken,
+        storedLen: sheetToken.length,
+        receivedTrimmed: authParam.replace(/=+$/, ''),
+        storedTrimmed: sheetToken.replace(/=+$/, ''),
+        match: authParam.replace(/=+$/, '') === sheetToken.replace(/=+$/, '')
+      });
+    }
+
+    if (!p.tk || !verifyAuth_(p.tk)) return json_({ ok:false, error:'認証エラー' });
 
     let post = {};
     if (p.data) {
