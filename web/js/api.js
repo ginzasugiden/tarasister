@@ -6,7 +6,7 @@ const API = (() => {
   function getAuth() { return authToken; }
 
   function request(action, data, extraParams) {
-    const params = new URLSearchParams({ action: action, auth: authToken });
+    const params = new URLSearchParams({ action: action, auth: authToken.replace(/=+$/, '') });
     if (extraParams) {
       Object.keys(extraParams).forEach(k => params.set(k, extraParams[k]));
     }
