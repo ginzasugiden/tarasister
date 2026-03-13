@@ -7,14 +7,14 @@ const Auth = (() => {
   function init() {
     const saved = sessionStorage.getItem(STORAGE_KEY);
     if (saved) {
-      API.setAuth(saved);
+      API.setAuth(saved.replace(/=+$/, ''));
       return true;
     }
     return false;
   }
 
   async function login(user, pass) {
-    const token = btoa(user + ':' + pass);
+    const token = btoa(user + ':' + pass).replace(/=+$/, '');
     // 認証テスト
     API.setAuth(token);
     try {
