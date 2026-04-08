@@ -1,5 +1,5 @@
 const API = (() => {
-  const BASE_URL = 'https://script.google.com/macros/s/AKfycbwzWsMmwuzJW0Eu6kTzAlrb__7-50YbDubCDVrjokF9I2h_NCsMX2uDiiY6zLpUlW79Tg/exec';
+  const BASE_URL = 'https://script.google.com/macros/s/AKfycbzb6z8DYb1a79SBwF_oVAP3Tsngmp3xe2TGG6Ooj8Y2p-HoPedx9-Zx296GsGTf-mEWjg/exec';
   let authToken = '';
 
   function setAuth(token) { authToken = token; }
