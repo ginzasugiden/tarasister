@@ -105,6 +105,6 @@ function getThreadsInsights_(mediaId) {
     + encodeURIComponent(token), { muteHttpExceptions: true });
   const r = JSON.parse(res.getContentText());
   if (!r.data) return null;
-  const m = {}; r.data.forEach(d => { m[d.name] = (d.values && d.values[0] && d.values[0].value) || 0; });
+  const m = {}; r.data.forEach(d => { m[d.name] = (d.total_value && d.total_value.value) || (d.values && d.values[0] && d.values[0].value) || 0; });
   return m;   // {views, likes, replies, reposts, quotes}
 }
