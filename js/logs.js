@@ -28,7 +28,7 @@ const Logs = (() => {
 
     const html = `<table>
       <thead><tr>
-        <th>日時</th><th>商品名</th><th>API</th><th>投稿文</th>
+        <th>日時</th><th>投稿先</th><th>商品名</th><th>API</th><th>投稿文</th>
         <th>ステータス</th><th>♥</th><th>RT</th><th>Imp</th>
       </tr></thead>
       <tbody>${logs.map(l => {
@@ -45,6 +45,7 @@ const Logs = (() => {
           : '<span class="badge badge-fail">失敗</span>';
         return `<tr>
           <td style="white-space:nowrap">${dtStr}</td>
+          <td>${l['投稿先'] === 'threads' ? 'Threads' : 'X'}</td>
           <td>${esc(l['商品名'])}</td>
           <td>${apiBadge}</td>
           <td class="tweet-preview">${esc(l['投稿文'])}</td>

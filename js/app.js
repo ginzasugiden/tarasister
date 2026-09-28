@@ -17,6 +17,8 @@ const App = (() => {
     // ダッシュボードアクション
     document.getElementById('btn-test-generate').addEventListener('click', handleTestGenerate);
     document.getElementById('btn-post-now').addEventListener('click', handlePostNow);
+    document.getElementById('btn-threads-connect').addEventListener('click', handleThreadsConnect);
+    document.getElementById('post-target').addEventListener('change', handleTargetChange);
 
     // モジュール初期化
     Products.init();
@@ -91,12 +93,50 @@ const App = (() => {
     } catch (_) {}
 
     try {
+      const th = await API.request('getThreadsStatus');
+      const exp = th.expires ? new Date(th.expires).toLocaleDateString('ja-JP') : '-';
+      document.getElementById('threads-status').textContent =
+        th.connected ? '連携済み（期限 ' + exp + '）' : '未連携';
+      document.getElementById('post-target').value = targetToValue(th.targets);
+    } catch (_) {}
+
+    try {
       const analysis = await API.request('getAnalysis');
       const total = (analysis.totalPosts || 0) + (analysis.failedPosts || 0);
       document.getElementById('stat-total').textContent = total;
       const rate = total > 0 ? Math.round((analysis.totalPosts / total) * 100) : 0;
       document.getElementById('stat-success-rate').textContent = rate + '%';
     } catch (_) {}
+  }
+
+  // GAS側の POST_TARGETS（threads / x / threads,x）→ セレクタ値
+  function targetToValue(t) {
+    const list = String(t || 'threads').split(',').map(s => s.trim());
+    return list.length > 1 ? 'both' : (list[0] || 'threads');
+  }
+
+  function targetLabel(v) {
+    return { threads: 'Threads', x: 'X', both: 'Threads と X' }[v] || v;
+  }
+
+  async function handleThreadsConnect() {
+    try {
+      const r = await API.request('getThreadsAuthUrl');
+      location.href = r.url;
+    } catch (e) {
+      toast('Threads連携エラー: ' + e.message);
+    }
+  }
+
+  async function handleTargetChange(e) {
+    const sel = e.target;
+    try {
+      await API.request('setPostTargets', { targets: sel.value });
+      toast('投稿先を ' + targetLabel(sel.value) + ' に変更しました');
+    } catch (err) {
+      toast('投稿先の変更エラー: ' + err.message);
+      loadDashboard();
+    }
   }
 
   async function handleTestGenerate() {
@@ -106,7 +146,9 @@ const App = (() => {
     const card = document.getElementById('dashboard-result');
 
     try {
-      const result = await API.request('testGenerate');
+      const sel = document.getElementById('post-target').value;
+      const target = sel === 'x' ? 'x' : 'threads';   // both は threads で生成
+      const result = await API.request('testGenerate', null, { target });
       document.getElementById('result-title').textContent = '🧪 テスト生成結果';
       document.getElementById('result-body').innerHTML = `
         <p>${esc(result.tweetText)}</p>
@@ -122,7 +164,8 @@ const App = (() => {
   }
 
   async function handlePostNow() {
-    if (!confirm('Xに投稿します。よろしいですか？')) return;
+    const targetName = targetLabel(document.getElementById('post-target').value);
+    if (!confirm(targetName + 'に投稿します。よろしいですか？')) return;
 
     const btn = document.getElementById('btn-post-now');
     btn.disabled = true;
@@ -131,13 +174,17 @@ const App = (() => {
 
     try {
       const result = await API.request('postNow');
-      document.getElementById('result-title').textContent = '📮 投稿完了';
-      document.getElementById('result-body').innerHTML = `
-        <p>${esc(result.tweetText)}</p>
-        <p class="meta">商品: ${esc(result.product)} / API: ${result.apiUsed} / Tweet ID: ${result.tweetId}</p>
-      `;
+      const results = result.results || [];
+      const okN = results.filter(r => r.ok).length;
+      document.getElementById('result-title').textContent = okN ? '📮 投稿結果' : '❌ 投稿失敗';
+      document.getElementById('result-body').innerHTML =
+        `<p class="meta">商品: ${esc(result.product)}</p>` +
+        results.map(r => r.ok
+          ? `<p><strong>${esc(r.target)}: OK</strong> (${esc(r.api)} / ID: ${esc(r.id)})<br>${esc(r.text)}</p>`
+          : `<p><strong>${esc(r.target)}: NG</strong> ${esc(r.error)}</p>`
+        ).join('');
       card.hidden = false;
-      toast('投稿しました！');
+      toast(okN === results.length ? '投稿しました！' : '一部の投稿に失敗しました');
       loadDashboard();
     } catch (e) {
       toast('投稿エラー: ' + e.message);

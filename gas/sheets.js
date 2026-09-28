@@ -53,19 +53,25 @@ function savePrompts_(d) {
   return {action:'saved'};
 }
 
-function getPromptTemplate_() {
+function getPromptTemplate_(target) {
   const sh = ss_().getSheetByName(SH_PROMPTS);
   if (!sh) throw new Error('プロンプトシートなし');
-  return { systemPrompt:sh.getRange('B1').getValue(), userTemplate:sh.getRange('B2').getValue() };
+  let sys = sh.getRange('B1').getValue();
+  if (target === 'threads') {
+    const t = sh.getRange('B3').getValue();
+    if (t) sys = t;   // B3が空ならB1を使う
+  }
+  return { systemPrompt:sys, userTemplate:sh.getRange('B2').getValue() };
 }
 
 // ===== 投稿ログ =====
 
-function writeLog_(product, text, api, tid, status, err) {
+// M列=投稿先(x/threads), N列=投稿URL
+function writeLog_(product, text, api, tid, status, err, target, url) {
   const sh = ss_().getSheetByName(SH_LOG);
   if (!sh) return;
   sh.appendRow([new Date(),product['商品名']||'',product['カテゴリ']||'',api||'',text||'',
-    text?text.length:0, tid||'', status||'', err||'', '','','']);
+    text?text.length:0, tid||'', status||'', err||'', '','','', target||'x', url||'']);
 }
 
 function getLogs_(page, per) {
@@ -113,7 +119,10 @@ function getAnalysis_() {
     daily.push({date:ds, claude:dr.filter(r=>r[3]==='Claude').length, openai:dr.filter(r=>r[3]==='OpenAI').length});
   }
 
-  return {claude:calc(cRows),openai:calc(oRows),products,daily,totalPosts:ok.length,failedPosts:rows.filter(r=>r[7]==='失敗').length};
+  const isThreads = r => r[12]==='threads';
+  const byTarget = { x:calc(ok.filter(r=>!isThreads(r))), threads:calc(ok.filter(isThreads)) };
+
+  return {claude:calc(cRows),openai:calc(oRows),products,daily,totalPosts:ok.length,failedPosts:rows.filter(r=>r[7]==='失敗').length,byTarget};
 }
 
 // ===== ステータス =====
@@ -140,16 +149,27 @@ function updateEngagement() {
   const sh = ss_().getSheetByName(SH_LOG);
   if (!sh) return;
   const d = sh.getDataRange().getValues();
-  let n=0;
+  let n=0, xFailed=false;   // X用は1回失敗したら以降スキップ（401連発対策）
   for (let i=1;i<d.length;i++) {
-    const tid=d[i][6], st=d[i][7];
+    const tid=d[i][6], st=d[i][7], target=d[i][12]||'x';
     if (!tid||st!=='成功') continue;
     const h=(Date.now()-new Date(d[i][0]).getTime())/(36e5);
     if (h<24||h>168) continue;
+    if (target!=='threads' && xFailed) continue;
     try {
-      const m=getTweetMetrics_(tid);
-      if (m) { const r=i+1; sh.getRange(r,10).setValue(m.like_count||0); sh.getRange(r,11).setValue(m.retweet_count||0); sh.getRange(r,12).setValue(m.impression_count||0); n++; }
-    } catch(e){ Logger.log('Metrics err: '+e.message); }
+      const r=i+1;
+      if (target==='threads') {
+        const m=getThreadsInsights_(tid);
+        if (m) { sh.getRange(r,10).setValue(m.likes||0); sh.getRange(r,11).setValue(m.reposts||0); sh.getRange(r,12).setValue(m.views||0); n++; }
+      } else {
+        const m=getTweetMetrics_(tid);
+        if (m) { sh.getRange(r,10).setValue(m.like_count||0); sh.getRange(r,11).setValue(m.retweet_count||0); sh.getRange(r,12).setValue(m.impression_count||0); n++; }
+        else xFailed=true;
+      }
+    } catch(e){
+      Logger.log('Metrics err: '+e.message);
+      if (target!=='threads') xFailed=true;
+    }
     Utilities.sleep(1000);
   }
   updateStatus_('📊 エンゲージメント更新: '+n+'件');
@@ -181,6 +201,11 @@ function setupSpreadsheet() {
     sh.getRange(1,1,1,12).setValues([['投稿日時','商品名','カテゴリ','使用API','投稿文','文字数','ツイートID','ステータス','エラー内容','いいね数','RT数','インプレッション']]);
     hStyle(sh,12);
   }
+  // 既存ヘッダーが12列のときだけ M1:N1 を追記（既存行は空のまま＝X扱い）
+  if (sh.getLastColumn() === 12) {
+    sh.getRange(1,13,1,2).setValues([['投稿先','投稿URL']]);
+    sh.getRange(1,13,1,2).setFontWeight('bold').setBackground('#1a1a2e').setFontColor('white');
+  }
 
   // プロンプト
   sh = s.getSheetByName(SH_PROMPTS);
@@ -199,6 +224,20 @@ function setupSpreadsheet() {
     sh.getRange('B2').setValue(
       '以下の商品のX投稿文を1つだけ生成。投稿文のみ出力。\n\n'
       +'商品名: {{商品名}}\n価格: {{価格}}\nカテゴリ: {{カテゴリ}}\n特徴: {{特徴}}\nターゲット: {{ターゲット}}'
+    );
+  }
+
+  // Threads用システムプロンプト（B3が空のときだけ追記）
+  sh = s.getSheetByName(SH_PROMPTS);
+  if (!sh.getRange('B3').getValue()) {
+    sh.getRange('A3').setValue('Threads用システムプロンプト');
+    sh.getRange('B3').setValue(
+      'あなたはTARA SISTERというウェルネス・ボディケアブランドのSNSマーケターです。\n'
+      +'ブランドコンセプト: 日本古来の知恵（禊・お茶・天然素材）を現代の美容に昇華。\n'
+      +'トーン: 上品で温かみがあり、押しつけがましくない。Threads向けに、会話のきっかけになる一言や問いかけを入れる。\n'
+      +'投稿ルール:\n- 日本語200〜300文字。改行を使って読みやすく\n'
+      +'- ハッシュタグは付けない（Threadsでは効果が薄い）\n- URLは含めない（リプライで送る）\n'
+      +'- 毎回違う切り口。薬機法NG表現を避ける\n- 絵文字は2〜4個'
     );
   }
 

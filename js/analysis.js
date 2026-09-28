@@ -8,6 +8,7 @@ const Analysis = (() => {
       const data = await API.request('getAnalysis');
       renderWinner(data);
       renderSummary(data);
+      renderTargets(data.byTarget || {});
       renderChart(data.daily || []);
       renderProducts(data.products || []);
     } catch (e) {
@@ -59,6 +60,18 @@ const Analysis = (() => {
         <div class="stat-value">${data.failedPosts || 0}</div>
       </div>
     `;
+  }
+
+  function renderTargets(byTarget) {
+    const el = document.getElementById('analysis-targets');
+    const rows = [['X', byTarget.x], ['Threads', byTarget.threads]];
+    el.innerHTML = `<table>
+      <thead><tr><th>投稿先</th><th>投稿数</th><th>平均♥</th><th>平均RT</th><th>平均Imp</th></tr></thead>
+      <tbody>${rows.map(([name, t]) => {
+        t = t || {};
+        return `<tr><td>${name}</td><td>${t.count || 0}</td><td>${t.avgLikes || 0}</td><td>${t.avgRT || 0}</td><td>${t.avgImpr || 0}</td></tr>`;
+      }).join('')}</tbody>
+    </table>`;
   }
 
   function renderChart(daily) {

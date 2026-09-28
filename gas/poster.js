@@ -5,8 +5,8 @@
 
 function prop_(key) { return PropertiesService.getScriptProperties().getProperty(key) || ''; }
 
-function generateTweetText_(product) {
-  const { systemPrompt, userTemplate } = getPromptTemplate_();
+function generateTweetText_(product, target) {
+  const { systemPrompt, userTemplate } = getPromptTemplate_(target);
   const useClaude = Math.random() < 0.5;
   const apiUsed = useClaude ? 'Claude' : 'OpenAI';
 
@@ -16,11 +16,15 @@ function generateTweetText_(product) {
     .replace(/\{\{特徴\}\}/g, product['特徴']||'')
     .replace(/\{\{ターゲット\}\}/g, product['ターゲット']||'')
     .replace(/\{\{URL\}\}/g, product['URL']||'')
-    .replace(/\{\{カテゴリ\}\}/g, product['カテゴリ']||'');
+    .replace(/\{\{カテゴリ\}\}/g, product['カテゴリ']||'')
+    .replace(/\{\{画像URL\}\}/g, product['画像URL']||'');
 
-  const tweetText = useClaude
+  let tweetText = useClaude
     ? callClaude_(systemPrompt, userPrompt)
     : callOpenAI_(systemPrompt, userPrompt);
+
+  // Threads は上限500字
+  if (target === 'threads' && tweetText.length > 500) tweetText = tweetText.substring(0, 497) + '...';
 
   return { tweetText, apiUsed };
 }

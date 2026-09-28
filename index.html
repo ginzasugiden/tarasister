@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TARA SISTER - X投稿管理</title>
+  <title>TARA SISTER - SNS投稿管理</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
@@ -15,7 +15,7 @@
       <div class="login-brand">
         <div class="login-mark">禊</div>
         <h1>TARA SISTER</h1>
-        <p class="login-sub">X Auto Post Management</p>
+        <p class="login-sub">SNS Auto Post Management</p>
       </div>
       <form id="login-form" class="login-form">
         <div class="input-group">
@@ -79,6 +79,22 @@
           <div class="stat-card">
             <div class="stat-label">ステータス</div>
             <div class="stat-value stat-value-sm" id="stat-status">-</div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Threads連携</div>
+            <div class="stat-value stat-value-sm" id="threads-status">-</div>
+            <button class="btn btn-secondary btn-sm" id="btn-threads-connect" style="margin-top:.5rem">Threadsと連携する</button>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">投稿先</div>
+            <select id="post-target" class="stat-value-sm" style="margin-top:.5rem">
+              <option value="threads">Threads</option>
+              <option value="x">X</option>
+              <option value="both">Threads + X</option>
+            </select>
           </div>
         </div>
 
@@ -186,6 +202,10 @@
         </div>
         <div id="analysis-winner" class="winner-card"></div>
         <div id="analysis-summary" class="stats-grid"></div>
+        <div class="card">
+          <h3>投稿先別</h3>
+          <div id="analysis-targets" class="table-container"></div>
+        </div>
         <div class="card">
           <h3>日別投稿数（直近14日）</h3>
           <div id="analysis-chart" class="chart-area"></div>

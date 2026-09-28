@@ -60,7 +60,11 @@ function handleRequest_(e) {
       case 'getLogs':        return json_({ ok:true, data: getLogs_(parseInt(p.page)||1, parseInt(p.perPage)||50) });
       case 'getAnalysis':    return json_({ ok:true, data: getAnalysis_() });
       case 'getStatus':      return json_({ ok:true, data: getStatus_() });
-      case 'testGenerate':   return json_({ ok:true, data: testGenerateOnly_() });
+      case 'testGenerate':   return json_({ ok:true, data: testGenerateOnly_(p.target || 'threads') });
+      case 'getThreadsStatus':  return json_({ ok:true, data: getThreadsStatus_() });
+      case 'getThreadsAuthUrl': return json_({ ok:true, data: { url: getThreadsAuthUrl_() } });
+      case 'threadsExchange':   return json_({ ok:true, data: exchangeThreadsCode_(p.code) });
+      case 'setPostTargets':    return json_({ ok:true, data: setPostTargets_(post.targets) });
       case 'postNow':        return json_({ ok:true, data: postTweetManual_() });
       case 'refreshProducts': return json_({ ok:true, data: refreshProductsFromBase_() });
       default: return json_({ ok:false, error:'不明: '+action });
@@ -77,47 +81,50 @@ function json_(data) {
 
 // ===== 自動投稿（トリガー用） =====
 
-function postTweet() {
-  let product={}, text='', api='';
-  try {
-    product = getRandomProduct_();
-    const r = generateTweetText_(product);
-    text = r.tweetText; api = r.apiUsed;
-    if (text.length > 140) text = text.substring(0,137) + '...';
-
-    // 1つ目: 紹介文
-    const tid = postToX_(text);
-    // 2つ目: リプライ（商品URL）
-    Utilities.sleep(3000);
-    const reply = '🛒 ' + product['商品名'] + '\n💰 ' + product['価格'] + '\n\n詳細はこちら👇\n' + product['URL'];
-    try { postToX_(reply, tid); } catch(re) { Logger.log('リプライエラー: '+re.message); }
-
-    writeLog_(product, text, api, tid, '成功', '');
-    updateStatus_('✅ ' + product['商品名'] + ' (' + api + ')');
-  } catch (err) {
-    Logger.log('自動投稿エラー: ' + err.message);
-    writeLog_(product, text, api, '', '失敗', err.message);
-    updateStatus_('❌ ' + err.message);
-  }
-}
-
-function postTweetManual_() {
-  let product={}, text='', api='';
-  product = getRandomProduct_();
-  const r = generateTweetText_(product);
-  text = r.tweetText; api = r.apiUsed;
-  if (text.length > 140) text = text.substring(0,137) + '...';
-  const tid = postToX_(text);
-  Utilities.sleep(3000);
-  const reply = '🛒 ' + product['商品名'] + '\n💰 ' + product['価格'] + '\n\n詳細はこちら👇\n' + product['URL'];
-  try { postToX_(reply, tid); } catch(re) { Logger.log('リプライエラー: '+re.message); }
-  writeLog_(product, text, api, tid, '成功', '');
-  return { product:product['商品名'], apiUsed:api, tweetText:text, tweetId:tid };
-}
-
-function testGenerateOnly_() {
+// 投稿先は POST_TARGETS（threads / x / threads,x、既定 threads）で切替
+function runPost_(manual) {
+  const targets = (prop_('POST_TARGETS') || 'threads').split(',').map(s => s.trim()).filter(Boolean);
   const product = getRandomProduct_();
-  const r = generateTweetText_(product);
+  const results = [];
+  targets.forEach(t => {
+    let text='', api='', id='';
+    try {
+      const r = generateTweetText_(product, t); text = r.tweetText; api = r.apiUsed;
+      if (t === 'x') {
+        if (text.length > 140) text = text.substring(0,137) + '...';
+        id = postToX_(text);
+        Utilities.sleep(3000);
+        try { postToX_(replyText_(product), id); } catch(e) { Logger.log('Xリプライ: '+e.message); }
+      } else {
+        // Threads: 画像があれば画像投稿、なければリンクプレビュー付きテキスト
+        id = postToThreads_(text, product['画像URL'] ? { imageUrl: product['画像URL'] } : { linkUrl: product['URL'] });
+        try { postToThreads_(replyText_(product), { replyToId: id }); } catch(e) { Logger.log('Threadsリプライ: '+e.message); }
+      }
+      writeLog_(product, text, api, id, '成功', '', t);
+      results.push({ target:t, ok:true, id, text, api });
+    } catch (err) {
+      Logger.log('投稿エラー(' + t + '): ' + err.message);
+      writeLog_(product, text, api, '', '失敗', err.message, t);
+      results.push({ target:t, ok:false, error: err.message });
+    }
+  });
+  const okN = results.filter(r => r.ok).length;
+  updateStatus_((okN ? '✅ ' : '❌ ') + product['商品名'] + ' → ' + results.map(r => r.target + (r.ok ? ' OK' : ' NG: ' + r.error)).join(' / '));
+  return { product: product['商品名'], results };
+}
+
+function replyText_(p) { return '🛒 ' + p['商品名'] + '\n💰 ' + p['価格'] + '\n\n詳細はこちら👇\n' + p['URL']; }
+
+// トリガー名は互換のため postTweet のまま
+function postTweet() {
+  try { runPost_(false); } catch (e) { Logger.log('自動投稿エラー: ' + e.message); updateStatus_('❌ ' + e.message); }
+}
+function postTweetManual_() { return runPost_(true); }
+
+function testGenerateOnly_(target) {
+  target = target || 'threads';
+  const product = getRandomProduct_();
+  const r = generateTweetText_(product, target);
   return { product:product['商品名'], apiUsed:r.apiUsed, tweetText:r.tweetText, charCount:r.tweetText.length };
 }
 
@@ -125,11 +132,12 @@ function testGenerateOnly_() {
 
 function setupTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
-    if (['postTweet','updateEngagement'].includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t);
+    if (['postTweet','updateEngagement','refreshThreadsToken'].includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('postTweet').timeBased().everyHours(3).create();
   ScriptApp.newTrigger('updateEngagement').timeBased().atHour(9).everyDays(1).create();
-  Logger.log('✅ トリガー設定完了: 3h投稿 + 毎朝9時エンゲージメント');
+  ScriptApp.newTrigger('refreshThreadsToken').timeBased().everyWeeks(1).create();
+  Logger.log('✅ トリガー設定完了: 3h投稿 + 毎朝9時エンゲージメント + 週次Threadsトークン更新');
 }
 
 function removeTriggers() {
