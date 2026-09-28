@@ -51,6 +51,11 @@ function saveThreadsToken_(token, expiresIn, userId) {
 // 週次トリガー: 期限まで14日を切ったら更新（長期トークンは24時間以上経過後に更新可）
 function refreshThreadsToken() {
   const token = prop_('THREADS_ACCESS_TOKEN'); if (!token) return;
+  if (!prop_('THREADS_TOKEN_EXPIRES')) {
+    // 手動投入トークン（期限不明）: 取得直後は更新不可のため、仮に50日後を期限として次回以降に更新
+    PropertiesService.getScriptProperties().setProperty('THREADS_TOKEN_EXPIRES', new Date(Date.now() + 50 * 86400e3).toISOString());
+    return;
+  }
   const exp = new Date(prop_('THREADS_TOKEN_EXPIRES') || 0);
   if (exp - Date.now() > 14 * 86400e3) return;
   const res = UrlFetchApp.fetch(THREADS_ROOT + '/refresh_access_token?grant_type=th_refresh_token&access_token='

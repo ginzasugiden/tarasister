@@ -92,11 +92,11 @@ function runPost_(manual) {
     }
   });
   const okN = results.filter(r => r.ok).length;
-  updateStatus_((okN ? '✅ ' : '❌ ') + product['商品名'] + ' → ' + results.map(r => r.target + (r.ok ? ' OK' : ' NG: ' + r.error)).join(' / '));
-  return { product: product['商品名'], results };
+  updateStatus_((okN ? '✅ ' : '❌ ') + cleanName_(product['商品名']) + ' → ' + results.map(r => r.target + (r.ok ? ' OK' : ' NG: ' + r.error)).join(' / '));
+  return { product: cleanName_(product['商品名']), results };
 }
 
-function replyText_(p) { return '🛒 ' + p['商品名'] + '\n💰 ' + p['価格'] + '\n\n詳細はこちら👇\n' + p['URL']; }
+function replyText_(p) { return '🛒 ' + cleanName_(p['商品名']) + '\n💰 ' + p['価格'] + '\n\n詳細はこちら👇\n' + p['URL']; }
 
 // トリガー名は互換のため postTweet のまま
 function postTweet() {
@@ -108,7 +108,7 @@ function testGenerateOnly_(target) {
   target = target || 'threads';
   const product = getRandomProduct_();
   const r = generateTweetText_(product, target);
-  return { product:product['商品名'], apiUsed:r.apiUsed, tweetText:r.tweetText, charCount:r.tweetText.length };
+  return { product:cleanName_(product['商品名']), apiUsed:r.apiUsed, tweetText:r.tweetText, charCount:r.tweetText.length };
 }
 
 // ===== トリガー管理 =====
@@ -119,7 +119,7 @@ function setupTrigger() {
   });
   ScriptApp.newTrigger('postTweet').timeBased().everyHours(3).create();
   ScriptApp.newTrigger('updateEngagement').timeBased().atHour(9).everyDays(1).create();
-  ScriptApp.newTrigger('refreshThreadsToken').timeBased().everyWeeks(1).create();
+  ScriptApp.newTrigger('refreshThreadsToken').timeBased().everyWeeks(1).onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(3).create();
   Logger.log('✅ トリガー設定完了: 3h投稿 + 毎朝9時エンゲージメント + 週次Threadsトークン更新');
 }
 

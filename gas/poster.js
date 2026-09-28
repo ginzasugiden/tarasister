@@ -5,13 +5,18 @@
 
 function prop_(key) { return PropertiesService.getScriptProperties().getProperty(key) || ''; }
 
+// 商品名の整形: BASEのページタイトル末尾「 | TARA SISTER powered by BASE」等を除去
+function cleanName_(name) {
+  return String(name || '').replace(/\s*[|｜]\s*TARA SISTER.*$/i, '').replace(/\s*[|｜].*powered by BASE.*$/i, '').trim();
+}
+
 function generateTweetText_(product, target) {
   const { systemPrompt, userTemplate } = getPromptTemplate_(target);
   const useClaude = Math.random() < 0.5;
   const apiUsed = useClaude ? 'Claude' : 'OpenAI';
 
   const userPrompt = userTemplate
-    .replace(/\{\{商品名\}\}/g, product['商品名']||'')
+    .replace(/\{\{商品名\}\}/g, cleanName_(product['商品名']))
     .replace(/\{\{価格\}\}/g, product['価格']||'')
     .replace(/\{\{特徴\}\}/g, product['特徴']||'')
     .replace(/\{\{ターゲット\}\}/g, product['ターゲット']||'')
@@ -19,14 +24,18 @@ function generateTweetText_(product, target) {
     .replace(/\{\{カテゴリ\}\}/g, product['カテゴリ']||'')
     .replace(/\{\{画像URL\}\}/g, product['画像URL']||'');
 
-  let tweetText = useClaude
-    ? callClaude_(systemPrompt, userPrompt)
-    : callOpenAI_(systemPrompt, userPrompt);
+  let tweetText, api = apiUsed;
+  if (useClaude) {
+    try { tweetText = callClaude_(systemPrompt, userPrompt); }
+    catch (e) { Logger.log('Claude失敗→OpenAIへフォールバック: ' + e.message); tweetText = callOpenAI_(systemPrompt, userPrompt); api = 'OpenAI'; }
+  } else {
+    tweetText = callOpenAI_(systemPrompt, userPrompt);
+  }
 
   // Threads は上限500字
   if (target === 'threads' && tweetText.length > 500) tweetText = tweetText.substring(0, 497) + '...';
 
-  return { tweetText, apiUsed };
+  return { tweetText, apiUsed: api };
 }
 
 function callClaude_(sys, user) {
@@ -35,12 +44,14 @@ function callClaude_(sys, user) {
   const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method:'post', contentType:'application/json',
     headers: { 'x-api-key':key, 'anthropic-version':'2023-06-01' },
-    payload: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:300, system:sys, messages:[{role:'user',content:user}] }),
+    payload: JSON.stringify({ model:'claude-sonnet-5-5', max_tokens:2000, system:sys, messages:[{role:'user',content:user}] }),
     muteHttpExceptions:true
   });
   const r = JSON.parse(res.getContentText());
   if (r.error) throw new Error('Claude: '+r.error.message);
-  return r.content[0].text.trim();
+  const text = (r.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
+  if (!text) throw new Error('Claude: テキスト応答なし: ' + res.getContentText().slice(0, 300));
+  return text;
 }
 
 function callOpenAI_(sys, user) {

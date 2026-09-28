@@ -1,0 +1,35 @@
+GASの認証がトークン照合で失敗しています。デバッグと修正をしてください。
+
+gas/auth.js の verifyAuth_ を以下に書き換え：
+
+function verifyAuth_(token) {
+  try {
+    var ss = SpreadsheetApp.openById('12jG6r6WrUFbTdJfk86i9zdCxbc0ZP8tlBOojTDjQnBU');
+    var sheet = ss.getSheetByName('認証');
+    if (!sheet) {
+      Logger.log('認証シートが見つからない');
+      return false;
+    }
+    var data = sheet.getDataRange().getValues();
+    var inputToken = String(token).trim();
+    Logger.log('受信トークン: [' + inputToken + '] 長さ:' + inputToken.length);
+    for (var i = 1; i < data.length; i++) {
+      var storedToken = String(data[i][1]).trim();
+      Logger.log('保存トークン: [' + storedToken + '] 長さ:' + storedToken.length);
+      if (storedToken === inputToken) return true;
+      // ==が欠落するケース対応
+      if (storedToken.replace(/=+$/, '') === inputToken.replace(/=+$/, '')) return true;
+    }
+    return false;
+  } catch(e) {
+    Logger.log('認証エラー: ' + e.message);
+    return false;
+  }
+}
+
+ポイント：
+- ss_() ではなく直接 openById を使う（関数の依存関係問題を排除）
+- Base64の末尾 == が欠落するケースにも対応
+- ログで実際のトークンを記録
+
+clasp push 後、必ず「デプロイを管理」→鉛筆→新しいバージョン→デプロイ。
